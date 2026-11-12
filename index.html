@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNS投稿用 文字数・ハッシュタグ最適化チェッカー</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); line-height: 1.6; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 24px; }
+        header h1 { font-size: 1.5rem; margin-bottom: 8px; color: var(--text-main); }
+        header p { color: var(--text-sub); font-size: 0.9rem; }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        textarea { width: 100%; height: 180px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; resize: vertical; outline: none; transition: border-color 0.2s; }
+        textarea:focus { border-color: var(--primary); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 15px; }
+        .stat-box { background: var(--bg-color); padding: 12px; border-radius: 8px; text-align: center; }
+        .stat-box .label { font-size: 0.8rem; color: var(--text-sub); }
+        .stat-box .value { font-size: 1.25rem; font-weight: bold; color: var(--primary); }
+        .platform-list { display: flex; flex-direction: column; gap: 12px; }
+        .platform-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-color); border-radius: 8px; border-left: 4px solid var(--primary); }
+        .platform-name { font-weight: bold; font-size: 0.95rem; }
+        .platform-status { font-size: 0.9rem; font-weight: 500; }
+        .ok { color: var(--success); }
+        .ng { color: var(--danger); }
+        .tag-section { margin-top: 15px; }
+        .tag-section h3 { font-size: 0.95rem; margin-bottom: 8px; }
+        .tag-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip { background: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 16px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s; }
+        .chip:hover { background: #bae6fd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SNS投稿用 文字数・ハッシュタグ最適化チェッカー</h1>
+            <p>X、Instagram、Threadsなどの文字数制限とハッシュタグをリアルタイムチェック</p>
+        </header>
+
+        <div class="card">
+            <textarea id="postInput" placeholder="ここに文章を入力してください..."></textarea>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="label">総文字数</div>
+                    <div class="value" id="charCount">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">改行数</div>
+                    <div class="value" id="lineCount">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">ハッシュタグ数</div>
+                    <div class="value" id="tagCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="font-size: 1.1rem; margin-bottom: 12px;">プラットフォーム別 制限チェック</h2>
+            <div class="platform-list" id="platformList">
+                <!-- JSで動的生成 -->
+            </div>
+        </div>
+
+        <div class="card tag-section">
+            <h3>よく使うハッシュタグ（クリックで末尾に追加）</h3>
+            <div class="tag-chips">
+                <span class="chip" onclick="appendTag('#ポイ活')">#ポイ活</span>
+                <span class="chip" onclick="appendTag('#副業')">#副業</span>
+                <span class="chip" onclick="appendTag('#便利ツール')">#便利ツール</span>
+                <span class="chip" onclick="appendTag('#AI活用')">#AI活用</span>
+                <span class="chip" onclick="appendTag('#作業効率化')">#作業効率化</span>
+                <span class="chip" onclick="appendTag('#プログラミング')">#プログラミング</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const platforms = [
+            { name: 'X (旧Twitter) ポスト', limit: 140 },
+            { name: 'Instagram キャプション', limit: 2200 },
+            { name: 'Threads (スレッズ)', limit: 500 },
+            { name: 'note 記事タイトル', limit: 100 }
+        ];
+
+        const input = document.getElementById('postInput');
+        const charCountEl = document.getElementById('charCount');
+        const lineCountEl = document.getElementById('lineCount');
+        const tagCountEl = document.getElementById('tagCount');
+        const platformListEl = document.getElementById('platformList');
+
+        function updateChecker() {
+            const text = input.value;
+            const charCount = text.length;
+            const lineCount = text.split('\n').length;
+            const tags = text.match(/#[\w\u3000-\u30ff\u4e04-\u9fa5]+/g) || [];
+            const tagCount = tags.length;
+
+            charCountEl.textContent = charCount;
+            lineCountEl.textContent = lineCount;
+            tagCountEl.textContent = tagCount;
+
+            platformListEl.innerHTML = '';
+            platforms.forEach(p => {
+                const diff = p.limit - charCount;
+                const isOk = diff >= 0;
+                const div = document.createElement('div');
+                div.className = 'platform-item';
+                div.innerHTML = `
+                    <span class="platform-name">${p.name} (上限 ${p.limit}字)</span>
+                    <span class="platform-status ${isOk ? 'ok' : 'ng'}">
+                        ${isOk ? `残り ${diff} 文字` : `制限超過 ${Math.abs(diff)} 文字`}
+                    </span>
+                `;
+                platformListEl.appendChild(div);
+            });
+        }
+
+        function appendTag(tag) {
+            input.value += (input.value && !input.value.endsWith(' ') ? ' ' : '') + tag + ' ';
+            input.focus();
+            updateChecker();
+        }
+
+        input.addEventListener('input', updateChecker);
+        updateChecker();
+    </script>
+</body>
+</html>
